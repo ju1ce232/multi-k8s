@@ -74,7 +74,7 @@ name: Deploy MultiK8s # Updated name  for clarity
 on: # Trigger workflow on pushes to main branch
   push: # Updated to trigger only on main branch
     branches: # Specify the branch to trigger on
-      - main # Main branch
+      - master # Main branch
 
 env: # Set SHA environment variable
   SHA: $(git rev-parse HEAD) # Get the current commit SHA
