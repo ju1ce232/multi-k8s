@@ -92,12 +92,12 @@ jobs: # Define the jobs to run
           docker run -e CI=true rallycoding/react-test npm test 
 
       - name: Set Service Key # Authenticate to Google Cloud
-        uses: 'google-github-actions/auth@v0' # Use Google Auth action
+        uses: 'google-github-actions/auth@v2' # Use Google Auth action
         with: # Provide credentials
           credentials_json: '${{ secrets.GKE_SA_KEY }}' # GKE service account key
 
       - name: Set Project # Set the Google Cloud project
-        uses: google-github-actions/setup-gcloud@v0 # Use setup-gcloud action
+        uses: google-github-actions/setup-gcloud@v2 # Use setup-gcloud action
         with: # Provide project ID
           project_id: multi-k8s-475319 # Updated project ID
 
@@ -106,30 +106,30 @@ jobs: # Define the jobs to run
           gcloud --quiet auth configure-docker
 
       - name: Get Credentials # Get GKE cluster credentials
-        uses: google-github-actions/get-gke-credentials@v0 # Use get-gke-credentials action
+        uses: google-github-actions/get-gke-credentials@v2 # Use get-gke-credentials action
         with: # Provide cluster details
           cluster_name: autopilot-cluster-1 # Updated cluster name
           location: us-central1 # Cluster location
 
       - name: Build # Build Docker images
         run: |- # Build client, server, and worker images with tags
-          docker build -t rallycoding/multi-client-k8s-gh:latest -t rallycoding/multi-client-k8s-gh:${{ env.SHA }} -f ./client/Dockerfile ./client
-          docker build -t rallycoding/multi-server-k8s-gh:latest -t rallycoding/multi-server-k8s-gh:${{ env.SHA }} -f ./server/Dockerfile ./server
-          docker build -t rallycoding/multi-worker-k8s-gh:latest -t rallycoding/multi-worker-k8s-gh:${{ env.SHA }} -f ./worker/Dockerfile ./worker
+          docker build -t skir232232/multi-client-k8s-gh:latest -t skir232232/multi-client-k8s-gh:${{ env.SHA }} -f ./client/Dockerfile ./client
+          docker build -t skir232232/multi-server-k8s-gh:latest -t skir232232/multi-server-k8s-gh:${{ env.SHA }} -f ./server/Dockerfile ./server
+          docker build -t skir232232/multi-worker-k8s-gh:latest -t skir232232/multi-worker-k8s-gh:${{ env.SHA }} -f ./worker/Dockerfile ./worker
 
       - name: Push # Push Docker images to registry
         run: |- # Push both latest and SHA-tagged images
-          docker push rallycoding/multi-client-k8s-gh:latest
-          docker push rallycoding/multi-server-k8s-gh:latest
-          docker push rallycoding/multi-worker-k8s-gh:latest
+          docker push skir232232/multi-client-k8s-gh:latest
+          docker push skir232232/multi-server-k8s-gh:latest
+          docker push skir232232/multi-worker-k8s-gh:latest
 
-          docker push rallycoding/multi-client-k8s-gh:${{ env.SHA }}
-          docker push rallycoding/multi-server-k8s-gh:${{ env.SHA }}
-          docker push rallycoding/multi-worker-k8s-gh:${{ env.SHA }}
+          docker push skir232232/multi-client-k8s-gh:${{ env.SHA }}
+          docker push skir232232/multi-server-k8s-gh:${{ env.SHA }}
+          docker push skir232232/multi-worker-k8s-gh:${{ env.SHA }}
 
       - name: Apply # Apply Kubernetes manifests and update deployments
         run: |- # Deploy to GKE cluster
           kubectl apply -f k8s
-          kubectl set image deployments/server-deployment server=rallycoding/multi-server-k8s-gh:${{ env.SHA }}
-          kubectl set image deployments/client-deployment client=rallycoding/multi-client-k8s-gh:${{ env.SHA }}
-          kubectl set image deployments/worker-deployment worker=rallycoding/multi-worker-k8s-gh:${{ env.SHA }}
+          kubectl set image deployments/server-deployment server=skir232232/multi-server-k8s-gh:${{ env.SHA }}
+          kubectl set image deployments/client-deployment client=skir232232/multi-client-k8s-gh:${{ env.SHA }}
+          kubectl set image deployments/worker-deployment worker=skir232232/multi-worker-k8s-gh:${{ env.SHA }}
