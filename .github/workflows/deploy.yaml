@@ -108,7 +108,7 @@ jobs: # Define the jobs to run
       - name: Get Credentials # Get GKE cluster credentials
         uses: google-github-actions/get-gke-credentials@v2 # Use get-gke-credentials action
         with: # Provide cluster details
-          cluster_name: autopilot-cluster-1 # Updated cluster name
+          cluster_name: multi-k8s # Updated cluster name
           location: us-central1 # Cluster location
 
       - name: Build # Build Docker images
@@ -132,5 +132,4 @@ jobs: # Define the jobs to run
           kubectl apply -f k8s
           kubectl set image deployments/server-deployment server=skir232232/multi-server-k8s-gh:${{ env.SHA }}
           kubectl set image deployments/client-deployment client=skir232232/multi-client-k8s-gh:${{ env.SHA }}
-          kubectl set image deployments/worker-deployment worker=skir232232/multi-worker-k8s-gh:${{ env.SHA }}
-          
+          kubectl set image deployments/worker-deployment worker=skir232232/multi-worker-k8s-gh:${{ env.SHA }}y
