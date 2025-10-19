@@ -1,0 +1,135 @@
+# Deploy MultiK8s workflow
+#
+# Purpose:
+#   - Build, test, containerize, push Docker images for client, server and worker
+#     components, and deploy them to a GKE cluster by updating Kubernetes deployments.
+#
+# Trigger:
+#   - Runs on push events to the 'main' branch.
+#
+# Environment:
+#   - SHA: computed using '$(git rev-parse HEAD)' in this workflow (intended to tag images
+#     with the current commit SHA). Note: in GitHub Actions, using github.sha is typically
+#     more robust than running git on the runner.
+#
+# Required secrets:
+#   - DOCKER_USERNAME: Docker registry username for 'docker login'.
+#   - DOCKER_PASSWORD: Docker registry password for 'docker login'.
+#   - GKE_SA_KEY: JSON service account key used by google-github-actions/auth to authenticate.
+#
+# Jobs (build):
+#   - runs-on: ubuntu-latest
+#
+# Steps overview:
+#   1) Checkout repository (actions/checkout@v3).
+#   2) Test:
+#        - Log in to Docker using DOCKER_USERNAME/DOCKER_PASSWORD.
+#        - Build a test image from client/Dockerfile.dev (tag: rallycoding/react-test).
+#        - Run tests inside the test container (CI=true).
+#   3) Set Service Key:
+#        - Uses google-github-actions/auth@v0 with credentials_json from GKE_SA_KEY to
+#          authenticate to Google Cloud.
+#   4) Set Project:
+#        - Uses google-github-actions/setup-gcloud@v0 to select project_id 'multi-338920'.
+#   5) Auth:
+#        - Runs 'gcloud --quiet auth configure-docker' to configure Docker credential helpers
+#          for pushing to GCR (or other registries supported by gcloud).
+#   6) Get Credentials:
+#        - Uses google-github-actions/get-gke-credentials@v0 with cluster_name 'multi-cluster'
+#          and location 'us-central1-c' to configure kubectl for the target GKE cluster.
+#   7) Build:
+#        - Builds three Docker images:
+#            * client (./client/Dockerfile) -> rallycoding/multi-client-k8s-gh:latest and :${SHA}
+#            * server (./server/Dockerfile) -> rallycoding/multi-server-k8s-gh:latest and :${SHA}
+#            * worker (./worker/Dockerfile) -> rallycoding/multi-worker-k8s-gh:latest and :${SHA}
+#        - Uses multi-tagging (latest and commit SHA) so deployments can be updated with an immutable tag.
+#   8) Push:
+#        - Pushes the 'latest' and SHA-tagged images for client, server and worker to the Docker registry.
+#   9) Apply:
+#        - Applies Kubernetes manifests from the 'k8s' directory (kubectl apply -f k8s).
+#        - Updates the images on existing deployments using kubectl set image:
+#            * deployments/server-deployment: server -> rallycoding/multi-server-k8s-gh:${SHA}
+#            * deployments/client-deployment: client -> rallycoding/multi-client-k8s-gh:${SHA}
+#            * deployments/worker-deployment: worker -> rallycoding/multi-worker-k8s-gh:${SHA}
+#
+# Notes and recommendations:
+#   - Ensure the Docker repository (rallycoding/*) exists and the configured credentials have push access.
+#   - Verify the GKE service account has the required IAM roles: GKE Cluster Viewer / GKE Admin,
+#     and permissions to push to the container registry.
+#   - Consider using the built-in GitHub Actions context (github.sha) for the commit SHA instead
+#     of shelling out to git at workflow parse time.
+#   - Pin versions of GitHub Actions (e.g., actions/checkout@v3) as done here; consider using more
+#     specific minor-version pins for reproducibility.
+#   - For secret handling, keep GKE_SA_KEY stored securely in repository or organization secrets.
+#   - If builds are large or frequent, consider using build caching or GitHub's cache actions to speed up CI.
+#
+# Security considerations:
+#   - Do not echo secrets to logs; avoid printing sensitive values.
+#   - Ensure least-privilege service account for GKE and registry access.
+#
+# Summary:
+#   - This workflow automates CI (test), container image builds, pushes to a Docker registry, and
+#     deployment updates to a GKE cluster for a multi-component Kubernetes application.
+name: Deploy MultiK8s # Updated name  for clarity
+on: # Trigger workflow on pushes to main branch
+  push: # Updated to trigger only on main branch
+    branches: # Specify the branch to trigger on
+      - main # Main branch
+
+env: # Set SHA environment variable
+  SHA: $(git rev-parse HEAD) # Get the current commit SHA
+
+jobs: # Define the jobs to run
+  build: # Job name
+    runs-on: ubuntu-latest # Use the latest Ubuntu runner
+    steps: # Define the steps in the job
+      - uses: actions/checkout@v3 # Checkout the repository
+
+      - name: Test # Step to run tests
+        run: |- # Run tests inside a Docker container
+          docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+          docker build -t rallycoding/react-test -f ./client/Dockerfile.dev ./client 
+          docker run -e CI=true rallycoding/react-test npm test 
+
+      - name: Set Service Key # Authenticate to Google Cloud
+        uses: 'google-github-actions/auth@v0' # Use Google Auth action
+        with: # Provide credentials
+          credentials_json: '${{ secrets.GKE_SA_KEY }}' # GKE service account key
+
+      - name: Set Project # Set the Google Cloud project
+        uses: google-github-actions/setup-gcloud@v0 # Use setup-gcloud action
+        with: # Provide project ID
+          project_id: multi-k8s-475319 # Updated project ID
+
+      - name: Auth # Configure Docker for GCR
+        run: |- # Authenticate Docker with gcloud
+          gcloud --quiet auth configure-docker
+
+      - name: Get Credentials # Get GKE cluster credentials
+        uses: google-github-actions/get-gke-credentials@v0 # Use get-gke-credentials action
+        with: # Provide cluster details
+          cluster_name: autopilot-cluster-1 # Updated cluster name
+          location: us-central1 # Cluster location
+
+      - name: Build # Build Docker images
+        run: |- # Build client, server, and worker images with tags
+          docker build -t rallycoding/multi-client-k8s-gh:latest -t rallycoding/multi-client-k8s-gh:${{ env.SHA }} -f ./client/Dockerfile ./client
+          docker build -t rallycoding/multi-server-k8s-gh:latest -t rallycoding/multi-server-k8s-gh:${{ env.SHA }} -f ./server/Dockerfile ./server
+          docker build -t rallycoding/multi-worker-k8s-gh:latest -t rallycoding/multi-worker-k8s-gh:${{ env.SHA }} -f ./worker/Dockerfile ./worker
+
+      - name: Push # Push Docker images to registry
+        run: |- # Push both latest and SHA-tagged images
+          docker push rallycoding/multi-client-k8s-gh:latest
+          docker push rallycoding/multi-server-k8s-gh:latest
+          docker push rallycoding/multi-worker-k8s-gh:latest
+
+          docker push rallycoding/multi-client-k8s-gh:${{ env.SHA }}
+          docker push rallycoding/multi-server-k8s-gh:${{ env.SHA }}
+          docker push rallycoding/multi-worker-k8s-gh:${{ env.SHA }}
+
+      - name: Apply # Apply Kubernetes manifests and update deployments
+        run: |- # Deploy to GKE cluster
+          kubectl apply -f k8s
+          kubectl set image deployments/server-deployment server=rallycoding/multi-server-k8s-gh:${{ env.SHA }}
+          kubectl set image deployments/client-deployment client=rallycoding/multi-client-k8s-gh:${{ env.SHA }}
+          kubectl set image deployments/worker-deployment worker=rallycoding/multi-worker-k8s-gh:${{ env.SHA }}
