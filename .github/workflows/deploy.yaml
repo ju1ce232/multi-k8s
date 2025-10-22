@@ -94,7 +94,7 @@ jobs: # Define the jobs to run
       - name: Set Service Key # Authenticate to Google Cloud
         uses: 'google-github-actions/auth@v2' # Use Google Auth action
         with: # Provide credentials
-          credentials_json: '${{ secrets.GKE_SA_KEY }}' # GKE service account key
+          workload_identity_provider: "projects/801509539323/locations/global/workloadIdentityPools/github/providers/my-repo"
 
       - name: Set Project # Set the Google Cloud project
         uses: google-github-actions/setup-gcloud@v2 # Use setup-gcloud action
@@ -110,6 +110,7 @@ jobs: # Define the jobs to run
         with: # Provide cluster details
           cluster_name: multi-k8s # Updated cluster name
           location: us-central1 # Cluster location
+          project_id: multi-k8s-475319 # Updated project ID
 
       - name: Build # Build Docker images
         run: |- # Build client, server, and worker images with tags
