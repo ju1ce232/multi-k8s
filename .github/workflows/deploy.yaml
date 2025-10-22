@@ -91,7 +91,7 @@ jobs: # Define the jobs to run
           docker build -t rallycoding/react-test -f ./client/Dockerfile.dev ./client 
           docker run -e CI=true rallycoding/react-test npm test 
 
-      - name: Set Service Key # Authenticate to Google Cloud
+      - name: Set Identity Provider # Set up Google Cloud authentication
         uses: 'google-github-actions/auth@v2' # Use Google Auth action
         with: # Provide credentials
           workload_identity_provider: "projects/801509539323/locations/global/workloadIdentityPools/github/providers/my-repo"
