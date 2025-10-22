@@ -76,6 +76,10 @@ on: # Trigger workflow on pushes to main branch
     branches: # Specify the branch to trigger on
       - master # Main branch
 
+permissions:
+  id-token: write
+  contents: read
+
 env: # Set SHA environment variable
   SHA: $(git rev-parse HEAD) # Get the current commit SHA
 
